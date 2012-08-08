@@ -127,6 +127,9 @@ describe('Binding attribute syntax', {
 
     'If the associated DOM element was removed by KO, handler subscriptions are disposed immediately': function () {
         var observable = new ko.observable("A");
+        ko.bindingHandlers.anyHandler = {
+            update: function (element, valueAccessor) { ko.utils.unwrapObservable(valueAccessor()); }
+        };
         testNode.innerHTML = "<div data-bind='anyHandler: myObservable()'></div>";
         ko.applyBindings({ myObservable: observable }, testNode);
 
@@ -139,6 +142,9 @@ describe('Binding attribute syntax', {
 
     'If the associated DOM element was removed independently of KO, handler subscriptions are disposed on the next evaluation': function () {
         var observable = new ko.observable("A");
+        ko.bindingHandlers.anyHandler = {
+            update: function (element, valueAccessor) { ko.utils.unwrapObservable(valueAccessor()); }
+        };
         testNode.innerHTML = "<div data-bind='anyHandler: myObservable()'></div>";
         ko.applyBindings({ myObservable: observable }, testNode);
 
@@ -518,24 +524,5 @@ describe('Binding attribute syntax', {
         value_of(countUpdates).should_be(1);
         observable(2);
         value_of(countUpdates).should_be(1);
-    },
-
-    'Should access latest value from extra binding when normal binding is updated': function() {
-        delete ko.bindingHandlers.nonexistentHandler;
-        var observable = ko.observable(), updateValue;
-        var vm = {myObservable: observable, myNonObservable: "first value"};
-        ko.bindingHandlers.existentHandler = {
-            update: function(element, valueAccessor, allBindingsAccessor) {
-                valueAccessor()();  // create dependency
-                updateValue = allBindingsAccessor().nonexistentHandler;
-            }
-        }
-        testNode.innerHTML = "<div data-bind='existentHandler: myObservable, nonexistentHandler: myNonObservable'></div>";
-
-        ko.applyBindings(vm, testNode);
-        value_of(updateValue).should_be("first value");
-        vm.myNonObservable = "second value";
-        observable.notifySubscribers();
-        value_of(updateValue).should_be("second value");
     }
 });

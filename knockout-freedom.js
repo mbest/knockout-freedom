@@ -108,7 +108,7 @@ function parseObjectLiteral(objectLiteralString) {
 
 function preProcessBindings(bindingsStringOrKeyValueArray) {
     function processKeyValue(key, val) {
-        if (includedBindings[key] && !isFunctionLiteral(val)) {
+        if (!excludedBindings[key] && !isFunctionLiteral(val)) {
             if (twoWayBindings[key] && isWriteableValue(val)) {
                 // for two-way bindings, provide a write method in case the value
                 // isn't a writable observable
@@ -272,14 +272,13 @@ ko.freeBindings = function(bindingsToFree, honorExclude) {
                     setUpFreedBindingHandler(handler);
                 handler.freed = 1;
             }
-            includedBindings[bindingKey] = 1;
+            delete excludedBindings[bindingKey];
         }
     });
 };
 
 ko.dontFreeBindings = function(bindingsToExclude) {
     ko.utils.arrayForEach([].concat(bindingsToExclude), function(bindingKey) {
-        includedBindings[bindingKey] = 0;
         excludedBindings[bindingKey] = 1;
     });
 };
@@ -302,26 +301,25 @@ ko.freeAllBindings = function() {
 
 
 var excludedBindings = {
-        event:1, click:1, submit:1, uniqueName:1
+        event:1, click:1, submit:1, valueUpdate:1, optionsIncludeDestroyed:1, optionsValue:1, optionsText:1, uniqueName:1
     },
     twoWayBindings = {
         value:1, selectedOptions:1, checked:1, hasfocus:1
     },
     templateWrappingBindings = {
         'with':1, 'if':1, ifnot:1, foreach:1
-    },
-    includedBindings = {};
+    };
 
-// Include bindings that don't have a handler
-if (ko.version > '2.2.0')
-    includedBindings.optionsCaption = 1;
+if (ko.version <= '2.1.0') {
+    excludedBindings.optionsCaption = 1;
+}
 
 /*
  * Register all active bindings when ko.applyBindings is called
  */
 var oldApplyBindings = ko.applyBindings;
 ko.applyBindings = function() {
-    // Register all bindings
+    // "Free" all bindings
     ko.freeAllBindings();
 
     oldApplyBindings.apply(this, arguments);
