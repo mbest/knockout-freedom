@@ -261,8 +261,8 @@ function setUpFreedTemplateWrappingHandler(handler) {
  * Set up the given bindings so that they are freed from updates from sibling
  * bindings.
  */
-ko.freeBindings = function(bindingsToFree, honorExclude) {
-    ko.utils.arrayForEach([].concat(bindingsToFree), function(bindingKey) {
+function includeBindings(bindingsToInclude, honorExclude) {
+    ko.utils.arrayForEach([].concat(bindingsToInclude), function(bindingKey) {
         if (!honorExclude || !excludedBindings[bindingKey]) {
             var handler = ko.bindingHandlers[bindingKey];
             if (handler && !handler.freed) {
@@ -275,13 +275,13 @@ ko.freeBindings = function(bindingsToFree, honorExclude) {
             delete excludedBindings[bindingKey];
         }
     });
-};
+}
 
-ko.dontFreeBindings = function(bindingsToExclude) {
+function excludeBindings(bindingsToExclude) {
     ko.utils.arrayForEach([].concat(bindingsToExclude), function(bindingKey) {
         excludedBindings[bindingKey] = 1;
     });
-};
+}
 
 // Based on code by Craig Constable from http://tokenposts.blogspot.com.au/2012/04/javascript-objectkeys-browser.html
 if (!Object.keys) Object.keys = function(o) {
@@ -295,9 +295,9 @@ if (!Object.keys) Object.keys = function(o) {
     return k;
 }
 
-ko.freeAllBindings = function() {
-    ko.freeBindings(Object.keys(ko.bindingHandlers), true);
-};
+function includeAllBindings() {
+    includeBindings(Object.keys(ko.bindingHandlers), true);
+}
 
 
 var excludedBindings = {
@@ -319,10 +319,16 @@ if (ko.version <= '2.1.0') {
  */
 var oldApplyBindings = ko.applyBindings;
 ko.applyBindings = function() {
-    // "Free" all bindings
-    ko.freeAllBindings();
-
+    includeAllBindings();
     oldApplyBindings.apply(this, arguments);
 }
+
+/*
+ * Export freedom functions
+ */
+ko.bindingFreedom = {
+    include: includeBindings,
+    exclude: excludeBindings
+};
 
 })(window, ko);

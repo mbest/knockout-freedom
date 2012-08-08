@@ -508,7 +508,7 @@ describe('Binding attribute syntax', {
         testNode.innerHTML = "<div data-bind='existentHandler: true, nonexistentHandler: myObservable()'></div>";
 
         // dependent mode: should update
-        ko.dontFreeBindings(['existentHandler', 'nonexistentHandler']);
+        ko.bindingFreedom.exclude(['existentHandler', 'nonexistentHandler']);
         ko.applyBindings({ myObservable: observable }, testNode);
         value_of(countUpdates).should_be(1);
         observable(3);
@@ -519,7 +519,7 @@ describe('Binding attribute syntax', {
         ko.cleanNode(testNode);
 
         // independent mode: should not update
-        ko.freeBindings(['existentHandler', 'nonexistentHandler']);
+        ko.bindingFreedom.include(['existentHandler', 'nonexistentHandler']);
         ko.applyBindings({ myObservable: observable }, testNode);
         value_of(countUpdates).should_be(1);
         observable(2);
