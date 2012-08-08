@@ -1,4 +1,4 @@
-// Freed bindings plugin for Knockout http://knockoutjs.com/
+// BINDING FREEDOM plugin for Knockout http://knockoutjs.com/
 // (c) Michael Best
 // License: MIT (http://www.opensource.org/licenses/mit-license.php)
 // Version 0.1.0
@@ -227,13 +227,15 @@ function setUpFreedBindingHandler(handler) {
             var self = this, args = arguments, ret;
             if (oldInit)
                 ret = ko.ignoreDependencies(oldInit, self, args);
-            ko.computed.possiblyWrap(function() {
-                oldUpdate.apply(self, args);
-            }, element);
+            if (this === window) {  // don't run update if init was called directly
+                ko.computed.possiblyWrap(function() {
+                    oldUpdate.apply(self, args);
+                }, element);
+            }
             return ret;
         };
         handler.update = function() {
-            if (this !== window)
+            if (this !== window)    // only run original update if update was called directly
                 oldUpdate.apply(this, arguments);
         };
     } else if (oldInit) {
@@ -241,20 +243,6 @@ function setUpFreedBindingHandler(handler) {
             return ko.ignoreDependencies(oldInit, this, arguments);
         };
     }
-}
-
-/*
- * Modify a template wrapper binding so that it only calls the template init
- * function. Remove the update function.
- */
-var templateValueAccessorName = findNameMethodSignatureContaining(ko.bindingHandlers.ifnot, 'templateEngine');
-function setUpFreedTemplateWrappingHandler(handler) {
-    handler.init = function(element, valueAccessor) {
-        var args = Array.prototype.slice.call(arguments, 0);
-        args[1] = handler[templateValueAccessorName](valueAccessor);
-        return ko.bindingHandlers.template.init.apply(this, args);
-    };
-    delete handler.update;
 }
 
 /*
@@ -266,10 +254,7 @@ function includeBindings(bindingsToInclude, honorExclude) {
         if (!honorExclude || !excludedBindings[bindingKey]) {
             var handler = ko.bindingHandlers[bindingKey];
             if (handler && !handler.freed) {
-                if (templateWrappingBindings[bindingKey])
-                    setUpFreedTemplateWrappingHandler(handler);
-                else
-                    setUpFreedBindingHandler(handler);
+                setUpFreedBindingHandler(handler);
                 handler.freed = 1;
             }
             delete excludedBindings[bindingKey];
@@ -305,9 +290,6 @@ var excludedBindings = {
     },
     twoWayBindings = {
         value:1, selectedOptions:1, checked:1, hasfocus:1
-    },
-    templateWrappingBindings = {
-        'with':1, 'if':1, ifnot:1, foreach:1
     };
 
 if (ko.version <= '2.1.0') {
