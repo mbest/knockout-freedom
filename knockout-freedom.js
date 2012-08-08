@@ -27,31 +27,20 @@ function isPossiblyUnwrappedObservable(expression) {
     return expression.match(/[^(]+\(/) !== null;
 }
 
-function ensureQuoted(key) {
-    return "'" + key + "'";
-}
-
-var stringDouble = '(?:"(?:[^"\\\\]|\\\\.)*")';
-var stringSingle = "(?:'(?:[^'\\\\]|\\\\.)*')";
-var stringRegexp = '(?:/(?:[^/\\\\]|\\\\.)*/)';
-var specials = ',"\'{}()/:[\\]';
-var everyThingElse = '(?:[^\\s:,][^' + specials + ']*[^\\s' + specials + '])';
-var oneNotSpace = '[^\\s]';
-
-var bindingToken = RegExp(
-    '(?:' + stringDouble
-    + '|' + stringSingle
-    + '|' + stringRegexp
-    + '|' + everyThingElse
-    + '|' + oneNotSpace
-    + ')', 'g');
+var stringDouble = '(?:"(?:[^"\\\\]|\\\\.)*")',
+    stringSingle = "(?:'(?:[^'\\\\]|\\\\.)*')",
+    stringRegexp = '(?:/(?:[^/\\\\]|\\\\.)*/)',
+    specials = ',"\'{}()/:[\\]',
+    everyThingElse = '(?:[^\\s:,][^' + specials + ']*[^\\s' + specials + '])',
+    oneNotSpace = '[^\\s]',
+    bindingToken = RegExp('(?:' + stringDouble + '|' + stringSingle + '|' + stringRegexp + '|' + everyThingElse + '|' + oneNotSpace + ')', 'g');
 
 var nativeTrim = String.prototype.trim;
 function trim(str) {
-    return str == null ? ""
-        : nativeTrim
-            ? nativeTrim.call(str)
-            : str.toString().replace(/^\s+/, '').replace(/\s+$/, '');
+    return str == null ? "" :
+        nativeTrim ?
+            nativeTrim.call(str) :
+            str.toString().replace(/^\s+/, '').replace(/\s+$/, '');
 }
 
 function parseObjectLiteral(objectLiteralString) {
@@ -59,13 +48,10 @@ function parseObjectLiteral(objectLiteralString) {
     var str = trim(objectLiteralString);
 
     // Trim braces '{' surrounding the whole object literal
-    if (str.charCodeAt(0) === 123)
-        str = str.slice(1, -1);
+    if (str.charCodeAt(0) === 123) str = str.slice(1, -1);
 
     // Split into tokens
-    var result = [],
-        toks = str.match(bindingToken),
-        key, values, depth = 0;
+    var result = [], toks = str.match(bindingToken), key, values, depth = 0;
 
     if (toks) {
         // Append a comma so that we don't need a separate code block to deal with the last item
@@ -92,9 +78,7 @@ function parseObjectLiteral(objectLiteralString) {
                 --depth;
             // The key must be a single token; if it's a string, trim the quotes
             } else if (!key) {
-                key = (c === 34 || c === 39) // '"', "'"
-                    ? tok.slice(1, -1)
-                    : tok;
+                key = (c === 34 || c === 39) /* '"', "'" */ ? tok.slice(1, -1) : tok;
                 continue;
             }
             if (values)
@@ -110,16 +94,16 @@ function preProcessBindings(bindingsStringOrKeyValueArray) {
     function processKeyValue(key, val) {
         if (!excludedBindings[key] && !isFunctionLiteral(val)) {
             if (twoWayBindings[key] && isWriteableValue(val)) {
-                // for two-way bindings, provide a write method in case the value
-                // isn't a writable observable
+                // For two-way bindings, provide a write method in case the value
+                // isn't a writable observable.
                 val = 'ko.bindingValueWrap(function(){return ' + val + '},function(_z){' + val + '=_z;})';
             } else if (isPossiblyUnwrappedObservable(val)) {
                 // Try to prevent observables from being accessed when parsing a binding;
-                // Instead they will be "unwrapped" within the context of the specific binding handler
+                // Instead they will be "unwrapped" within the context of the specific binding handler.
                 val = 'ko.bindingValueWrap(function(){return ' + val + '})';
             }
         }
-        resultStrings.push(ensureQuoted(key) + ":" + val);
+        resultStrings.push("'" + key + "':" + val);
     }
 
     var resultStrings = [],
@@ -133,6 +117,10 @@ function preProcessBindings(bindingsStringOrKeyValueArray) {
     return resultStrings.join(",");
 }
 
+
+/*
+ * Helper functions for finding minified property names
+ */
 function findNameMethodSignatureContaining(obj, match) {
     for (var a in obj)
         if (obj.hasOwnProperty(a) && obj[a].toString().indexOf(match) >= 0)
@@ -151,12 +139,14 @@ function findSubObjectWithProperty(obj, prop) {
             return obj[a];
 }
 
+
 /*
- * Replace preProcessBindings/insertPropertyAccessorsIntoJson with new version
+ * Replace Knockout's preProcessBindings/insertPropertyAccessorsIntoJson with our version
  */
 var rewritingObj = ko.jsonExpressionRewriting,
     preprocssName = findPropertyName(rewritingObj, rewritingObj.insertPropertyAccessorsIntoJson);
 rewritingObj[preprocssName] = rewritingObj.preProcessBindings = rewritingObj.insertPropertyAccessorsIntoJson = preProcessBindings;
+
 
 /*
  * ko.bindingValueWrap is used by preProcessBindings to return a function that
@@ -176,7 +166,7 @@ ko.bindingValueWrap = function(valueAccessor, valueWriter) {
     }
     valueFunction[koProtoName] = ko.observable;
     if (valueWriter) {
-        // For basic observableArray support (for checked binding)
+        // Basic observableArray support (for checked binding)
         ko.utils.arrayForEach(["push", "splice"], function (methodName) {
             valueFunction[methodName] = function () {
                 var value = valueAccessor();
@@ -187,6 +177,10 @@ ko.bindingValueWrap = function(valueAccessor, valueWriter) {
     return valueFunction;
 };
 
+
+/*
+ * ko.ignoreDependencies is used to ensure that the binding handlers don't leak any dependencies
+ */
 if (!ko.ignoreDependencies) {
     var depDet = findSubObjectWithProperty(ko, 'end'),
         depDetBeginName = findNameMethodSignatureContaining(depDet, '.push({');
@@ -199,6 +193,7 @@ if (!ko.ignoreDependencies) {
         }
     }
 }
+
 
 /*
  * ko.computed.possiblyWrap calls the read function and returns the computed only
@@ -258,7 +253,7 @@ function setUpFreedTemplateWrappingHandler(handler) {
 }
 
 /*
- * Set up the given bindings so that they are freed from updates from sibling
+ * Set up the given bindings so that they are freed from updates by sibling
  * bindings.
  */
 ko.freeBindings = function(bindingsToFree, honorExclude) {
@@ -277,13 +272,19 @@ ko.freeBindings = function(bindingsToFree, honorExclude) {
     });
 };
 
+/*
+ * Exclude the given bindings from being freed from sibling updates.
+ */
 ko.dontFreeBindings = function(bindingsToExclude) {
     ko.utils.arrayForEach([].concat(bindingsToExclude), function(bindingKey) {
         excludedBindings[bindingKey] = 1;
     });
 };
 
-// Based on code by Craig Constable from http://tokenposts.blogspot.com.au/2012/04/javascript-objectkeys-browser.html
+/*
+ * Get all the property names from an object.
+ * Based on code by Craig Constable from http://tokenposts.blogspot.com.au/2012/04/javascript-objectkeys-browser.html
+ */
 if (!Object.keys) Object.keys = function(o) {
     if (o !== Object(o))
         throw new TypeError('Object.keys called on a non-object');
@@ -295,21 +296,23 @@ if (!Object.keys) Object.keys = function(o) {
     return k;
 }
 
-ko.freeAllBindings = function() {
-    ko.freeBindings(Object.keys(ko.bindingHandlers), true);
-};
-
-
+/*
+ * Keep track of which bindings must be handled differently
+ */
+// Excluded bindings won't be modified; generally this is because the handler doesn't call `unwrapObservable` on its value
 var excludedBindings = {
         event:1, click:1, submit:1, valueUpdate:1, optionsIncludeDestroyed:1, optionsValue:1, optionsText:1, uniqueName:1
     },
+// Two-way bindings include a write function that allow the handler to update the value even if it's not an observable.
     twoWayBindings = {
         value:1, selectedOptions:1, checked:1, hasfocus:1
     },
+// Bindings that wrap template are handled specially since the template binding is also modified.
     templateWrappingBindings = {
         'with':1, 'if':1, ifnot:1, foreach:1
     };
 
+// Before Knockout 2.2.0, optionsCaption wasn't "unwrapped".
 if (ko.version <= '2.1.0') {
     excludedBindings.optionsCaption = 1;
 }
@@ -319,8 +322,8 @@ if (ko.version <= '2.1.0') {
  */
 var oldApplyBindings = ko.applyBindings;
 ko.applyBindings = function() {
-    // "Free" all bindings
-    ko.freeAllBindings();
+    // "Free" all bindings (but honor excluded ones)
+    ko.freeBindings(Object.keys(ko.bindingHandlers), true);
 
     oldApplyBindings.apply(this, arguments);
 }
