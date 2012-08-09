@@ -90,8 +90,18 @@ function parseObjectLiteral(objectLiteralString) {
     return result;
 }
 
+if (!ko.getBindingHandler) ko.getBindingHandler = function(bindingKey) {
+    return ko.bindingHandlers[bindingKey];
+};
+
 function preProcessBindings(bindingsStringOrKeyValueArray) {
     function processKeyValue(key, val) {
+        function callPreprocessHook(obj) {
+            return (obj && obj.preprocess) ? (val = obj.preprocess(val, key, processKeyValue)) : true;
+        }
+        if (!callPreprocessHook(ko.bindingProvider.instance) || !callPreprocessHook(ko.getBindingHandler(key)))
+            return;
+
         if (!excludedBindings[key] && !isFunctionLiteral(val)) {
             if (twoWayBindings[key] && isWriteableValue(val)) {
                 // For two-way bindings, provide a write method in case the value
@@ -247,7 +257,7 @@ function setUpFreedBindingHandler(handler) {
 function includeBindings(bindingsToInclude, honorExclude) {
     ko.utils.arrayForEach([].concat(bindingsToInclude), function(bindingKey) {
         if (!honorExclude || !excludedBindings[bindingKey]) {
-            var handler = ko.bindingHandlers[bindingKey];
+            var handler = ko.getBindingHandler(bindingKey);
             if (handler && !handler.freed) {
                 setUpFreedBindingHandler(handler);
                 handler.freed = 1;
