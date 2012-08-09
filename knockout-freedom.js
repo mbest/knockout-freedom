@@ -207,8 +207,8 @@ if (!ko.ignoreDependencies) {
 
 /*
  * ko.computed.possiblyWrap calls the read function and returns the computed only
- * if it has any dependencies (the function accessed an observable). Otherwise dispose
- * the computd so that memory is freed.
+ * if it has dependencies (because the function accesses an observable). Otherwise
+ * dispose the computed so that memory is freed.
  */
 if (!ko.computed.possiblyWrap) ko.computed.possiblyWrap = function(readFunction, disposeWhenNodeIsRemoved) {
     var computed = ko.computed(readFunction, null, {
@@ -229,12 +229,13 @@ function setUpFreedBindingHandler(handler) {
     var oldInit = handler.init, oldUpdate = handler.update;
     if (oldUpdate) {
         handler.init = function(element) {
-            var self = this, args = arguments, ret;
+            var ret;
             if (oldInit)
-                ret = ko.ignoreDependencies(oldInit, self, args);
+                ret = ko.ignoreDependencies(oldInit, this, arguments);
             if (this === window) {  // don't run update if init was called directly
+                var args = arguments;
                 ko.computed.possiblyWrap(function() {
-                    oldUpdate.apply(self, args);
+                    oldUpdate.apply(window, args);
                 }, element);
             }
             return ret;
@@ -260,7 +261,7 @@ function includeBindings(bindingsToInclude, honorExclude) {
             var handler = ko.getBindingHandler(bindingKey);
             if (handler && !handler.freed) {
                 setUpFreedBindingHandler(handler);
-                handler.freed = 1;
+                handler.freed = true;
             }
             delete excludedBindings[bindingKey];
         }
@@ -272,7 +273,7 @@ function includeBindings(bindingsToInclude, honorExclude) {
  */
 function excludeBindings(bindingsToExclude) {
     ko.utils.arrayForEach([].concat(bindingsToExclude), function(bindingKey) {
-        excludedBindings[bindingKey] = 1;
+        excludedBindings[bindingKey] = true;
     });
 }
 
@@ -291,7 +292,7 @@ if (!Object.keys) Object.keys = function(o) {
     return k;
 }
 
-function includeAllBindings() {
+function setUpAllBindings() {
     includeBindings(Object.keys(ko.bindingHandlers), true);
 }
 
@@ -314,11 +315,11 @@ if (ko.version <= '2.1.0') {
 }
 
 /*
- * Register all active bindings when ko.applyBindings is called
+ * Set up all active bindings when ko.applyBindings is called
  */
 var oldApplyBindings = ko.applyBindings;
 ko.applyBindings = function() {
-    includeAllBindings();
+    setUpAllBindings();
     oldApplyBindings.apply(this, arguments);
 }
 
