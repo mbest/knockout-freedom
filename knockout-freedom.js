@@ -1,4 +1,4 @@
-// Freed bindings plugin for Knockout http://knockoutjs.com/
+// BINDING FREEDOM plugin for Knockout http://knockoutjs.com/
 // (c) Michael Best
 // License: MIT (http://www.opensource.org/licenses/mit-license.php)
 // Version 0.1.0
@@ -222,13 +222,15 @@ function setUpFreedBindingHandler(handler) {
             var self = this, args = arguments, ret;
             if (oldInit)
                 ret = ko.ignoreDependencies(oldInit, self, args);
-            ko.computed.possiblyWrap(function() {
-                oldUpdate.apply(self, args);
-            }, element);
+            if (this === window) {  // don't run update if init was called directly
+                ko.computed.possiblyWrap(function() {
+                    oldUpdate.apply(self, args);
+                }, element);
+            }
             return ret;
         };
         handler.update = function() {
-            if (this !== window)
+            if (this !== window)    // only run original update if update was called directly
                 oldUpdate.apply(this, arguments);
         };
     } else if (oldInit) {
@@ -239,47 +241,30 @@ function setUpFreedBindingHandler(handler) {
 }
 
 /*
- * Modify a template wrapper binding so that it only calls the template init
- * function. Remove the update function.
- */
-var templateValueAccessorName = findNameMethodSignatureContaining(ko.bindingHandlers.ifnot, 'templateEngine');
-function setUpFreedTemplateWrappingHandler(handler) {
-    handler.init = function(element, valueAccessor) {
-        var args = Array.prototype.slice.call(arguments, 0);
-        args[1] = handler[templateValueAccessorName](valueAccessor);
-        return ko.bindingHandlers.template.init.apply(this, args);
-    };
-    delete handler.update;
-}
-
-/*
  * Set up the given bindings so that they are freed from updates by sibling
  * bindings.
  */
-ko.freeBindings = function(bindingsToFree, honorExclude) {
-    ko.utils.arrayForEach([].concat(bindingsToFree), function(bindingKey) {
+function includeBindings(bindingsToInclude, honorExclude) {
+    ko.utils.arrayForEach([].concat(bindingsToInclude), function(bindingKey) {
         if (!honorExclude || !excludedBindings[bindingKey]) {
             var handler = ko.bindingHandlers[bindingKey];
             if (handler && !handler.freed) {
-                if (templateWrappingBindings[bindingKey])
-                    setUpFreedTemplateWrappingHandler(handler);
-                else
-                    setUpFreedBindingHandler(handler);
+                setUpFreedBindingHandler(handler);
                 handler.freed = 1;
             }
             delete excludedBindings[bindingKey];
         }
     });
-};
+}
 
 /*
  * Exclude the given bindings from being freed from sibling updates.
  */
-ko.dontFreeBindings = function(bindingsToExclude) {
+function excludeBindings(bindingsToExclude) {
     ko.utils.arrayForEach([].concat(bindingsToExclude), function(bindingKey) {
         excludedBindings[bindingKey] = 1;
     });
-};
+}
 
 /*
  * Get all the property names from an object.
@@ -296,6 +281,11 @@ if (!Object.keys) Object.keys = function(o) {
     return k;
 }
 
+function includeAllBindings() {
+    includeBindings(Object.keys(ko.bindingHandlers), true);
+}
+
+
 /*
  * Keep track of which bindings must be handled differently
  */
@@ -306,10 +296,6 @@ var excludedBindings = {
 // Two-way bindings include a write function that allow the handler to update the value even if it's not an observable.
     twoWayBindings = {
         value:1, selectedOptions:1, checked:1, hasfocus:1
-    },
-// Bindings that wrap template are handled specially since the template binding is also modified.
-    templateWrappingBindings = {
-        'with':1, 'if':1, ifnot:1, foreach:1
     };
 
 // Before Knockout 2.2.0, optionsCaption wasn't "unwrapped".
@@ -322,10 +308,16 @@ if (ko.version <= '2.1.0') {
  */
 var oldApplyBindings = ko.applyBindings;
 ko.applyBindings = function() {
-    // "Free" all bindings (but honor excluded ones)
-    ko.freeBindings(Object.keys(ko.bindingHandlers), true);
-
+    includeAllBindings();
     oldApplyBindings.apply(this, arguments);
 }
+
+/*
+ * Export freedom functions
+ */
+ko.bindingFreedom = {
+    include: includeBindings,
+    exclude: excludeBindings
+};
 
 })(window, ko);
