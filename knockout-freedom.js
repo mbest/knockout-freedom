@@ -9,7 +9,7 @@
  * Includes an optimized parseObjectLiteral and new preProcessBindings
  */
 var javaScriptAssignmentTarget = /^[\_$a-z][\_$a-z0-9]*(\[.*?\])*(\.[\_$a-z][\_$a-z0-9]*(\[.*?\])*)*$/i;
-var javaScriptReservedWords = ["true", "false", "null"];
+var javaScriptReservedWords = ["true", "false", "null", "undefined"];
 
 function isWriteableValue(expression) {
     if (ko.utils.arrayIndexOf(javaScriptReservedWords, expression) >= 0)
@@ -162,7 +162,9 @@ rewritingObj[preprocssName] = rewritingObj.preProcessBindings = rewritingObj.ins
  * ko.bindingValueWrap is used by preProcessBindings to return a function that
  * will look like an observable and will unwrap the value accessor and the value.
  */
-var koProtoName = findPropertyName(ko.observable.fn, ko.observable);
+var koProtoName = findPropertyName(ko.observable.fn, ko.observable),
+    observable = ko.observable(),
+    peekName = findPropertyName(observable, observable.peek) || 'peek';
 ko.bindingValueWrap = function(valueAccessor, valueWriter) {
     function valueFunction(valueToWrite) {
         var value = valueAccessor();
@@ -175,6 +177,9 @@ ko.bindingValueWrap = function(valueAccessor, valueWriter) {
         }
     }
     valueFunction[koProtoName] = ko.observable;
+    valueFunction[peekName] = valueFunction.peek = function() {
+        return ko.ignoreDependencies(valueFunction);
+    };
     if (valueWriter) {
         // Basic observableArray support (for checked binding)
         ko.utils.arrayForEach(["push", "splice"], function (methodName) {
@@ -328,7 +333,8 @@ ko.applyBindings = function() {
  */
 ko.bindingFreedom = {
     include: includeBindings,
-    exclude: excludeBindings
+    exclude: excludeBindings,
+    twoWayBindings: twoWayBindings
 };
 
 })(window, ko);
