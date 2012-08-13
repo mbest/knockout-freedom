@@ -3,7 +3,9 @@
 // License: MIT (http://www.opensource.org/licenses/mit-license.php)
 // Version 0.1.0
 
-(function(window, ko, undefined) {
+(function(ko, undefined) {
+
+var global = this;
 
 /*
  * Includes an optimized parseObjectLiteral and new preProcessBindings
@@ -237,16 +239,16 @@ function setUpFreedBindingHandler(handler) {
             var ret;
             if (oldInit)
                 ret = ko.ignoreDependencies(oldInit, this, arguments);
-            if (this === window) {  // don't run update if init was called directly
+            if (this === global) {  // don't run update if init was called directly
                 var args = arguments;
                 ko.computed.possiblyWrap(function() {
-                    oldUpdate.apply(window, args);
+                    oldUpdate.apply(null, args);
                 }, element);
             }
             return ret;
         };
         handler.update = function() {
-            if (this !== window)    // only run original update if update was called directly
+            if (this !== global)    // only run original update if update was called directly
                 oldUpdate.apply(this, arguments);
         };
     } else if (oldInit) {
@@ -291,7 +293,7 @@ if (!Object.keys) Object.keys = function(o) {
         throw new TypeError('Object.keys called on a non-object');
     var k = [], p;
     for (p in o) {
-        if (o.hasOwnProperty(o, p))
+        if (o.hasOwnProperty(p))
             k.push(p);
     }
     return k;
@@ -337,4 +339,4 @@ ko.bindingFreedom = {
     twoWayBindings: twoWayBindings
 };
 
-})(window, ko);
+})(ko);
