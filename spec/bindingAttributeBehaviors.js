@@ -510,6 +510,7 @@ describe('Binding attribute syntax', {
         // dependent mode: should update
         ko.bindingFreedom.exclude(['existentHandler', 'nonexistentHandler']);
         ko.applyBindings({ myObservable: observable }, testNode);
+        value_of(ko.bindingFreedom.isExcluded('existentHandler')).should_be(true);
         value_of(countUpdates).should_be(1);
         observable(3);
         value_of(countUpdates).should_be(2);

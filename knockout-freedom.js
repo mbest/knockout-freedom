@@ -304,7 +304,7 @@ function setUpAllBindings() {
 }
 
 function isExcluded(bindingKey) {
-    return excludeBinding[bindingKey] ? true : false;
+    return excludedBindings[bindingKey] ? true : false;
 }
 
 /*
