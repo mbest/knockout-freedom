@@ -303,6 +303,9 @@ function setUpAllBindings() {
     includeBindings(Object.keys(ko.bindingHandlers), true);
 }
 
+function isExcluded(bindingKey) {
+    return excludeBinding[bindingKey] ? true : false;
+}
 
 /*
  * Keep track of which bindings must be handled differently
@@ -336,6 +339,7 @@ ko.applyBindings = function() {
 ko.bindingFreedom = {
     include: includeBindings,
     exclude: excludeBindings,
+    isExcluded: isExcluded,
     twoWayBindings: twoWayBindings
 };
 
