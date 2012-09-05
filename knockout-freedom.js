@@ -1,11 +1,21 @@
 // BINDING FREEDOM plugin for Knockout http://knockoutjs.com/
 // (c) Michael Best
 // License: MIT (http://www.opensource.org/licenses/mit-license.php)
-// Version 0.1.0
+// Version 0.2.0
 
-(function(ko, undefined) {
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define(['knockout'], factory);
+    } else {
+        // Browser globals
+        root.ko.bindingFreedom = factory(root.ko);
+    }
+}(this, function(ko) {
 
-var global = this;
+// Ensure we have the correct defaultThis and undefined values ()
+var defaultThis, undefined;
+(function(){ defaultThis = this; }());
 
 /*
  * Includes an optimized parseObjectLiteral and new preProcessBindings
@@ -239,7 +249,7 @@ function setUpFreedBindingHandler(handler) {
             var ret;
             if (oldInit)
                 ret = ko.ignoreDependencies(oldInit, this, arguments);
-            if (this === global) {  // don't run update if init was called directly
+            if (this === defaultThis) {  // don't run update if init was called directly
                 var args = arguments;
                 ko.computed.possiblyWrap(function() {
                     oldUpdate.apply(null, args);
@@ -248,7 +258,7 @@ function setUpFreedBindingHandler(handler) {
             return ret;
         };
         handler.update = function() {
-            if (this !== global)    // only run original update if update was called directly
+            if (this !== defaultThis)    // only run original update if update was called directly
                 oldUpdate.apply(this, arguments);
         };
     } else if (oldInit) {
@@ -336,11 +346,11 @@ ko.applyBindings = function() {
 /*
  * Export freedom functions
  */
-ko.bindingFreedom = {
+return {
     include: includeBindings,
     exclude: excludeBindings,
     isExcluded: isExcluded,
     twoWayBindings: twoWayBindings
 };
 
-})(ko);
+}));
