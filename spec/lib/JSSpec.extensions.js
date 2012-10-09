@@ -31,8 +31,49 @@ JSSpec.DSL.Subject.prototype.should_contain_text = function (expectedText) {
     JSSpec.DSL.Subject.prototype.should_be.call({ target: cleanedActualText }, expectedText);
 };
 
+JSSpec.DSL.Subject.prototype.should_have_own_properties = function (expectedProperties) {
+    var ownProperties = [];
+    for (var prop in this.target) {
+        if (this.target.hasOwnProperty(prop)) {
+            ownProperties.push(prop);
+        }
+    }
+    value_of(ownProperties).should_be(expectedProperties);
+};
+
+JSSpec.DSL.Subject.prototype.should_have_selected_values = function (expectedValues) {
+    var selectedNodes = ko.utils.arrayFilter(this.target.childNodes, function (node) { return node.selected; }),
+        selectedValues = ko.utils.arrayMap(selectedNodes, function (node) { return ko.selectExtensions.readValue(node); });
+    value_of(selectedValues).should_be(expectedValues);
+};
+
 JSSpec.addScriptReference = function(scriptUrl) {
     if (window.console)
         console.log("Loading " + scriptUrl + "...");
     document.write("<scr" + "ipt type='text/javascript' src='" + scriptUrl + "'></sc" + "ript>");
 };
+
+JSSpec.prepareTestNode = function() {
+    // The bindings specs make frequent use of this utility function to set up
+    // a clean new DOM node they can execute code against
+    var existingNode = document.getElementById("testNode");
+    if (existingNode != null)
+        existingNode.parentNode.removeChild(existingNode);
+    testNode = document.createElement("div");
+    testNode.id = "testNode";
+    document.body.appendChild(testNode);
+};
+
+// Note that, since IE 10 does not support conditional comments, the following logic only detects IE < 10.
+// Currently this is by design, since IE 10+ behaves correctly when treated as a standard browser.
+// If there is a future need to detect specific versions of IE10+, we will amend this.
+JSSpec.Browser.IEVersion = (function() {
+    var version = 3, div = document.createElement('div'), iElems = div.getElementsByTagName('i');
+
+    // Keep constructing conditional HTML blocks until we hit one that resolves to an empty fragment
+    while (
+        div.innerHTML = '<!--[if gt IE ' + (++version) + ']><i></i><![endif]-->',
+        iElems[0]
+    );
+    return version > 4 ? version : undefined;
+}());

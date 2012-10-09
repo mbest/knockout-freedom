@@ -171,46 +171,22 @@ describe('Binding attribute syntax', {
         value_of(passedValues[1]).should_be("goodbye");
     },
 
+    'Should be able to use $element in binding value': function() {
+        testNode.innerHTML = "<div data-bind='text: $element.tagName'></div>";
+        ko.applyBindings({}, testNode);
+        value_of(testNode).should_contain_text("DIV");
+    },
+
+    'Should be able to use $context in binding value to refer to the context object': function() {
+        testNode.innerHTML = "<div data-bind='text: $context.$data === $data'></div>";
+        ko.applyBindings({}, testNode);
+        value_of(testNode).should_contain_text("true");
+    },
+
     'Should be able to refer to the bound object itself (at the root scope, the viewmodel) via $data': function() {
         testNode.innerHTML = "<div data-bind='text: $data.someProp'></div>";
         ko.applyBindings({ someProp: 'My prop value' }, testNode);
         value_of(testNode).should_contain_text("My prop value");
-    },
-
-    'Should be able to get all updates to observables in both init and update': function() {
-        var lastBoundValueInit, lastBoundValueUpdate;
-        ko.bindingHandlers.testInit = {
-            init: function(element, valueAccessor) {
-                ko.dependentObservable(function() {
-                    lastBoundValueInit = ko.utils.unwrapObservable(valueAccessor());
-                });
-            }
-        };
-        ko.bindingHandlers.testUpdate = {
-            update: function(element, valueAccessor) {
-                lastBoundValueUpdate = ko.utils.unwrapObservable(valueAccessor());
-            }
-        };
-        testNode.innerHTML = "<div data-bind='testInit: myProp()'></div><div data-bind='testUpdate: myProp()'></div>";
-        var vm = ko.observable({ myProp: ko.observable("initial value") });
-        ko.applyBindings(vm, testNode);
-        value_of(lastBoundValueInit).should_be("initial value");
-        value_of(lastBoundValueUpdate).should_be("initial value");
-
-        // update value of observable
-        vm().myProp("second value");
-        value_of(lastBoundValueInit).should_be("second value");
-        value_of(lastBoundValueUpdate).should_be("second value");
-
-        // update value of observable to another observable
-        vm().myProp(ko.observable("third value"));
-        value_of(lastBoundValueInit).should_be("third value");
-        value_of(lastBoundValueUpdate).should_be("third value");
-
-        // update view model with brand-new property
-        /*vm({ myProp: function() {return "fourth value"; }});
-        value_of(lastBoundValueInit).should_be("fourth value");
-        value_of(lastBoundValueUpdate).should_be("fourth value");*/
     },
 
     'Bindings can signal that they control descendant bindings by returning a flag from their init function': function() {
@@ -313,11 +289,25 @@ describe('Binding attribute syntax', {
         ko.bindingHandlers.test = { init: function () { initCalls++ } };
         ko.virtualElements.allowedBindings['test'] = true;
 
-        testNode.innerHTML = "Hello <!-- ko test: false -->Some text<!-- /ko --> Goodbye"
+        testNode.innerHTML = "Hello <!-- ko test: false -->Some text<!-- /ko --> Goodbye";
         ko.applyBindings(null, testNode);
 
         value_of(initCalls).should_be(1);
         value_of(testNode).should_contain_text("Hello Some text Goodbye");
+    },
+
+    'Should be allowed to express containerless bindings with arbitrary internal whitespace and newlines': function() {
+            testNode.innerHTML = "Hello <!-- ko\n" +
+                             "    with\n" +
+                             "      : \n "+
+                             "        { \n" +
+                             "           \tpersonName: 'Bert'\n" +
+                             "        }\n" +
+                             "   \t --><span data-bind='text: personName'></span><!-- \n" +
+                             "     /ko \n" +
+                             "-->, Goodbye";
+        ko.applyBindings(null, testNode);
+        value_of(testNode).should_contain_text('Hello Bert, Goodbye');
     },
 
     'Should be able to access virtual children in custom containerless binding': function() {
@@ -459,6 +449,42 @@ describe('Binding attribute syntax', {
 
         ko.applyBindings({ myObservable: observable }, testNode);
         value_of(hasUpdatedSecondBinding).should_be(true);
+    },
+
+    'Should be able to get all updates to observables in both init and update': function() {
+        var lastBoundValueInit, lastBoundValueUpdate;
+        ko.bindingHandlers.testInit = {
+            init: function(element, valueAccessor) {
+                ko.dependentObservable(function() {
+                    lastBoundValueInit = ko.utils.unwrapObservable(valueAccessor());
+                });
+            }
+        };
+        ko.bindingHandlers.testUpdate = {
+            update: function(element, valueAccessor) {
+                lastBoundValueUpdate = ko.utils.unwrapObservable(valueAccessor());
+            }
+        };
+        testNode.innerHTML = "<div data-bind='testInit: myProp()'></div><div data-bind='testUpdate: myProp()'></div>";
+        var vm = ko.observable({ myProp: ko.observable("initial value") });
+        ko.applyBindings(vm, testNode);
+        value_of(lastBoundValueInit).should_be("initial value");
+        value_of(lastBoundValueUpdate).should_be("initial value");
+
+        // update value of observable
+        vm().myProp("second value");
+        value_of(lastBoundValueInit).should_be("second value");
+        value_of(lastBoundValueUpdate).should_be("second value");
+
+        // update value of observable to another observable
+        vm().myProp(ko.observable("third value"));
+        value_of(lastBoundValueInit).should_be("third value");
+        value_of(lastBoundValueUpdate).should_be("third value");
+
+        // update view model with brand-new property
+        /*vm({ myProp: function() {return "fourth value"; }});
+        value_of(lastBoundValueInit).should_be("fourth value");
+        value_of(lastBoundValueUpdate).should_be("fourth value");*/
     },
 
     'Should not subscribe to observables accessed in init function if binding are run independently': function() {

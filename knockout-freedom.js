@@ -20,13 +20,17 @@ var defaultThis, undefined;
 /*
  * Includes an optimized parseObjectLiteral and new preProcessBindings
  */
-var javaScriptAssignmentTarget = /^[\_$a-z][\_$a-z0-9]*(\[.*?\])*(\.[\_$a-z][\_$a-z0-9]*(\[.*?\])*)*$/i;
 var javaScriptReservedWords = ["true", "false", "null", "undefined"];
 
-function isWriteableValue(expression) {
-    if (ko.utils.arrayIndexOf(javaScriptReservedWords, expression) >= 0)
+// Matches something that can be assigned to--either an isolated identifier or something ending with a property accessor
+// This is designed to be simple and avoid false negatives, but could produce false positives (e.g., a+b.c).
+var javaScriptAssignmentTarget = /^(?:[$_a-z][$\w]*|(.+)(\.\s*[$_a-z][$\w]*|\[.+\]))$/i;
+
+function getWriteableValue(expression) {
+    if (ko.utils.arrayIndexOf(javaScriptReservedWords, expression.toLowerCase()) >= 0)
         return false;
-    return expression.match(javaScriptAssignmentTarget) !== null;
+    var match = expression.match(javaScriptAssignmentTarget);
+    return match === null ? false : match[1] ? ('Object(' + match[1] + ')' + match[2]) : expression;
 }
 
 function isFunctionLiteral(expression) {
@@ -108,6 +112,7 @@ if (!ko.getBindingHandler) ko.getBindingHandler = function(bindingKey) {
 
 function preProcessBindings(bindingsStringOrKeyValueArray) {
     function processKeyValue(key, val) {
+        var writableVal;
         function callPreprocessHook(obj) {
             return (obj && obj.preprocess) ? (val = obj.preprocess(val, key, processKeyValue)) : true;
         }
@@ -115,10 +120,10 @@ function preProcessBindings(bindingsStringOrKeyValueArray) {
             return;
 
         if (!excludedBindings[key] && !isFunctionLiteral(val)) {
-            if (twoWayBindings[key] && isWriteableValue(val)) {
+            if (twoWayBindings[key] && (writableVal = getWriteableValue(val))) {
                 // For two-way bindings, provide a write method in case the value
                 // isn't a writable observable.
-                val = 'ko.bindingValueWrap(function(){return ' + val + '},function(_z){' + val + '=_z;})';
+                val = 'ko.bindingValueWrap(function(){return ' + val + '},function(_z){' + writableVal + '=_z;})';
             } else if (isPossiblyUnwrappedObservable(val)) {
                 // Try to prevent observables from being accessed when parsing a binding;
                 // Instead they will be "unwrapped" within the context of the specific binding handler.
