@@ -1,3 +1,5 @@
+**Note:** This plugin isn't necessary with Knockout 3.0, since it includes the behavior added by Knockout Freedom (but using a different method).
+
 ### **Binding Freedom** plugin for [Knockout](http://knockoutjs.com/)
 
 Ryan Niemeyer’s blog post [“Knockout.js Performance Gotcha #3 - All Bindings Fire Together”](http://www.knockmeout.net/2012/06/knockoutjs-performance-gotcha-3-all-bindings.html) very clearly describes how and why sibling bindings (multiple bindings on the same element) all update together in Knockout. I discovered this problem soon after I started developing with Knockout and have come up with a few solutions since then:
